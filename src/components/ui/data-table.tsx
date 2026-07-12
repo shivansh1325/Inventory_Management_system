@@ -40,6 +40,7 @@ export function DataTable<T>({
   allowExport = true,
   pageSize = 20,
   emptyState,
+  initialSearch,
 }: {
   data: T[];
   columns: ColumnDef<T, any>[];
@@ -51,9 +52,10 @@ export function DataTable<T>({
   allowExport?: boolean;
   pageSize?: number;
   emptyState?: React.ReactNode;
+  initialSearch?: string;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState(initialSearch ?? "");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dense, setDense] = useState(false);
 

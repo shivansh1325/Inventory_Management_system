@@ -85,12 +85,15 @@ export function Topbar({
     <header className="no-print sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-slate-200 bg-surface/95 px-4 backdrop-blur">
       <button
         onClick={() => setPaletteOpen(true)}
-        className="flex h-9 w-72 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-400 hover:border-slate-300"
+        className="flex h-9 w-9 shrink items-center justify-center gap-2 overflow-hidden rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-400 hover:border-slate-300 sm:w-64 sm:justify-start sm:px-3 lg:w-80"
+        aria-label="Search"
       >
-        <Search className="h-4 w-4" />
-        Search components, products, runs…
-        <kbd className="ml-auto rounded border border-slate-300 px-1.5 font-mono text-[10px] text-slate-400">
-          Ctrl K
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="hidden min-w-0 truncate whitespace-nowrap sm:block">
+          Search components, products, runs…
+        </span>
+        <kbd className="ml-auto hidden shrink-0 whitespace-nowrap rounded border border-slate-300 px-1.5 py-0.5 font-mono text-[10px] leading-none text-slate-400 sm:block">
+          Ctrl&nbsp;K
         </kbd>
       </button>
 

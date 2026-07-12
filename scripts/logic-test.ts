@@ -70,12 +70,35 @@ async function main() {
   if (pcb.stockQty !== toMilli("10")) throw new Error(`FAIL: PCB stock ${pcb.stockQty}, expected 10000`);
   console.log("✓ Concurrency: exactly one of two racing runs succeeded, stock never negative");
 
+  // 4. Concurrency with SUFFICIENT stock: both runs must succeed with
+  // distinct run numbers (regression: runNo collision on Postgres).
+  const jb = await db.product.findFirstOrThrow({ where: { sku: "PRD-JNC-BOX" } });
+  const both = await Promise.allSettled([
+    completeProductionRun({ productId: jb.id, qtyMilli: toMilli("1"), note: "race C" }),
+    completeProductionRun({ productId: jb.id, qtyMilli: toMilli("1"), note: "race D" }),
+  ]);
+  const wins = both.filter(
+    (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof completeProductionRun>>> =>
+      r.status === "fulfilled",
+  );
+  if (wins.length !== 2) {
+    throw new Error(
+      `FAIL: expected both sufficient-stock runs to succeed, got ${wins.length} (${both
+        .map((r) => (r.status === "rejected" ? String(r.reason) : "ok"))
+        .join(" | ")})`,
+    );
+  }
+  if (wins[0].value.runNo === wins[1].value.runNo) {
+    throw new Error("FAIL: duplicate runNo issued");
+  }
+  console.log(`✓ Concurrency with stock available: both runs succeeded (${wins[0].value.runNo}, ${wins[1].value.runNo})`);
+
   // Ledger reconciliation after all of it.
   for (const c of await db.component.findMany()) {
     const sum = await db.stockMovement.aggregate({ where: { componentId: c.id }, _sum: { qtyChange: true } });
     if ((sum._sum.qtyChange ?? 0) !== c.stockQty) throw new Error(`FAIL: ledger mismatch ${c.sku}`);
   }
-  console.log("✓ Ledger still reconciles after block + reversal + race");
+  console.log("✓ Ledger still reconciles after block + reversal + races");
   console.log("\nALL LOGIC TESTS PASSED");
 }
 

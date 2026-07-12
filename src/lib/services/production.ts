@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { mulQty, divFloor, fmtQty } from "@/lib/qty";
 import { applyComponentDelta, GuardError } from "@/lib/services/stock-core";
+import { withDocNumberRetry } from "@/lib/services/doc-number";
 import { getSettings, getDefaultWarehouse } from "@/lib/settings";
 import { audit } from "@/lib/audit";
 import { notifyByPermission } from "@/lib/notify";
@@ -89,7 +90,7 @@ export async function completeProductionRun(opts: {
   const warehouseId = opts.warehouseId ?? (await getDefaultWarehouse()).id;
 
   try {
-    return await db.$transaction(async (tx) => {
+    return await withDocNumberRetry("runNo", () => db.$transaction(async (tx) => {
       const product = await tx.product.findUniqueOrThrow({ where: { id: productId } });
       if (!product.isActive) throw new Error("Product is archived");
       const bom = await tx.bomItem.findMany({
@@ -210,7 +211,7 @@ export async function completeProductionRun(opts: {
         where: { id: run.id },
         include: { lines: { include: { component: true } }, product: true },
       });
-    });
+    }));
   } catch (e) {
     if (e instanceof ShortfallError) {
       // Stockout incident: log + alert purchasing. Outside the (rolled-back) tx.

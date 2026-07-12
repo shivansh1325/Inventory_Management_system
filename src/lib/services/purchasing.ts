@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { mulQty, fmtQty } from "@/lib/qty";
 import { receiveStock } from "@/lib/services/stock";
+import { withDocNumberRetry } from "@/lib/services/doc-number";
 import { getSettings } from "@/lib/settings";
 import { canApproveValue } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
@@ -42,7 +43,7 @@ export async function createRequisition(opts: {
   });
   const costById = new Map(components.map((c) => [c.id, c.unitCost]));
 
-  const pr = await db.$transaction(async (tx) => {
+  const pr = await withDocNumberRetry("prNo", () => db.$transaction(async (tx) => {
     const count = await tx.purchaseRequisition.count();
     const prNo = `REQ-${String(count + 1).padStart(4, "0")}`;
     return tx.purchaseRequisition.create({
@@ -64,7 +65,7 @@ export async function createRequisition(opts: {
       },
       include: { lines: true },
     });
-  });
+  }));
 
   await audit(actor, "requisition.create", "PurchaseRequisition", pr.id, {
     prNo: pr.prNo,

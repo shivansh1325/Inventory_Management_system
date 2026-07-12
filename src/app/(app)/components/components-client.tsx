@@ -55,10 +55,12 @@ export function ComponentsClient({
   rows,
   warehouses,
   perms,
+  initialSearch,
 }: {
   rows: ComponentRow[];
   warehouses: WarehouseOption[];
   perms: Perms;
+  initialSearch?: string;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [editing, setEditing] = useState<ComponentRow | null | "new">(null);
@@ -193,6 +195,7 @@ export function ComponentsClient({
       <DataTable
         data={filtered}
         columns={columns}
+        initialSearch={initialSearch}
         searchPlaceholder="Search SKU, name, supplier…"
         onRowClick={(r) => setDetail(r)}
         exportName="components"

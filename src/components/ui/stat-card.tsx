@@ -42,7 +42,7 @@ export function StatCard({
               alert ? "bg-warning/15 text-warning" : "bg-primary-soft text-primary dark:text-slate-800",
             )}
           >
-            <Icon className="h-4.5 w-4.5 h-5 w-5" />
+            <Icon className="h-5 w-5" />
           </div>
         </div>
         <div className="mt-1.5 flex items-center gap-2 text-xs">

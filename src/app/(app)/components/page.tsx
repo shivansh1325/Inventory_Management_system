@@ -6,12 +6,20 @@ import { ComponentsClient, type ComponentRow } from "./components-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComponentsPage() {
+export default async function ComponentsPage({
+  searchParams,
+}: {
+  searchParams: { focus?: string };
+}) {
   const user = await requireUser();
   const [components, warehouses] = await Promise.all([
     db.component.findMany({ orderBy: { name: "asc" } }),
     db.warehouse.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
   ]);
+  // Command-palette jump: ?focus=<id> pre-filters the table to that component.
+  const focused = searchParams.focus
+    ? components.find((c) => c.id === searchParams.focus)
+    : undefined;
 
   const rows: ComponentRow[] = components.map((c) => ({
     id: c.id,
@@ -36,6 +44,7 @@ export default async function ComponentsPage() {
       />
       <ComponentsClient
         rows={rows}
+        initialSearch={focused?.sku}
         warehouses={warehouses.map((w) => ({ id: w.id, name: w.name, isDefault: w.isDefault }))}
         perms={{
           write: can(user.role, "components.write"),
