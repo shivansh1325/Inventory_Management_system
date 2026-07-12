@@ -1,6 +1,6 @@
 # Assembly Line Inventory Manager
 
-Enterprise-grade inventory management for assembly-line / manufacturing production. Full-stack **Next.js 14 (App Router) + TypeScript + Prisma + SQLite**, Tailwind design system with dark mode, RBAC with four roles, multi-warehouse stock, purchasing with approvals, and a manufacturing analytics layer — all built on an immutable stock-movement ledger.
+Enterprise-grade inventory management for assembly-line / manufacturing production. Full-stack **Next.js 14 (App Router) + TypeScript + Prisma + PostgreSQL**, Tailwind design system with dark mode, RBAC with four roles, multi-warehouse stock, purchasing with approvals, and a manufacturing analytics layer — all built on an immutable stock-movement ledger.
 
 The three core ideas:
 
@@ -10,14 +10,23 @@ The three core ideas:
 
 ## Setup
 
+Needs a PostgreSQL database. Easiest local option:
+
 ```bash
-npm install
-npx prisma migrate dev   # creates prisma/dev.db and runs the seed
-npm run seed             # (re)load demo data — safe to re-run anytime
-npm run dev              # http://localhost:3000
+docker run -d --name inv-pg -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=inventory -p 5432:5432 postgres:16
 ```
 
-`.env` needs `DATABASE_URL` and `AUTH_SECRET` (see `.env.example`; dev defaults ship in `.env`).
+Then:
+
+```bash
+npm install
+# .env: set DATABASE_URL (see .env.example) and AUTH_SECRET
+npx prisma migrate deploy   # apply schema
+npm run seed                # load demo data — safe to re-run anytime
+npm run dev                 # http://localhost:3000
+```
+
+(No local Postgres? Point `DATABASE_URL` at a free [Neon](https://neon.tech) database or your Render Postgres **external** connection string.)
 
 ### Demo logins (all password `demo1234`)
 
@@ -88,11 +97,27 @@ Permissions are **data**, not scattered checks: [src/lib/permissions.ts](src/lib
 
 Deactivated users are rejected on their next request (DB-verified), not just at token expiry.
 
+## Deploying to Render (free web service + Postgres)
+
+The repo ships a [render.yaml](render.yaml) blueprint. Two supported database options:
+
+- **Render Postgres** (Basic, ~$6/mo) — everything in one dashboard. Avoid Render's *free* Postgres: it is deleted after 30 days.
+- **Neon free tier** (`$0/mo`, neon.tech) — works identically; use the pooled connection string.
+
+Steps:
+
+1. Create the database, copy its connection string (Render: the **internal** URL if the DB is in the same region as the service; Neon: the pooled URL).
+2. Render dashboard → **New → Blueprint** → connect `shivansh1325/Inventory_Management_system`. Render reads `render.yaml` (free plan, build + start commands preset). When prompted, paste the connection string into `DATABASE_URL` (`AUTH_SECRET` is auto-generated).
+   - Or **New → Web Service** manually: runtime Node, build command `npm install && npm run render-build`, start command `npm start`, plan Free, env vars `DATABASE_URL` + `AUTH_SECRET`.
+3. Deploy. The build runs `prisma migrate deploy` (schema) and `scripts/bootstrap.ts` (idempotent: settings + Main Warehouse + a first Admin **only if no users exist** — `admin@demo.local` / `demo1234` by default, or set `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` env vars).
+4. Log in as the admin, change the password, create your team under Users & Roles.
+5. Optional demo data: from your local machine, set `DATABASE_URL` to the database's **external** URL and run `npm run seed` (wipes + reloads — never run against a database with real data).
+
+Free-tier caveats: the service sleeps after ~15 min idle (first request then takes ~30–60 s), and redeploys on every push to `main`.
+
 ## Exact decimal arithmetic (design note)
 
-Prisma's SQLite connector has no `Decimal` type. Quantities/costs are stored as **integers in milli-units** (×1000, 3 dp): `2.5 m` → `2500`. All parsing/arithmetic is integer-only via [src/lib/qty.ts](src/lib/qty.ts) — no float drift possible.
-
-**PostgreSQL later:** set `provider = "postgresql"` + `DATABASE_URL`, run `npx prisma migrate dev`; optionally migrate the integer columns to native `Decimal`. For existing pre-warehouse databases, `npx tsx scripts/backfill-warehouse.ts` creates the Main Warehouse and backfills levels/movements (idempotent).
+Quantities/costs are stored as **integers in milli-units** (×1000, 3 dp): `2.5 m` → `2500`. All parsing/arithmetic is integer-only via [src/lib/qty.ts](src/lib/qty.ts) — no float drift possible. The columns could be migrated to native Postgres `Decimal` later; the integer scheme is kept for exactness and portability. For databases created before the multi-warehouse migration, `npx tsx scripts/backfill-warehouse.ts` creates the Main Warehouse and backfills levels/movements (idempotent).
 
 ## Project layout
 

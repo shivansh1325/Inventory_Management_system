@@ -1,0 +1,19 @@
+# Render Blueprint — deploys the web app on the FREE plan.
+# The database is NOT provisioned here on purpose: create it yourself
+# (Render Postgres Basic ~$6/mo, or Neon free tier) and paste its
+# connection string into DATABASE_URL when Render prompts for it.
+services:
+  - type: web
+    name: inventory-management
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma migrate deploy && npx tsx scripts/bootstrap.ts && npm run build
+    startCommand: npm start
+    healthCheckPath: /login
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste your Postgres connection string in the dashboard
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: "22"

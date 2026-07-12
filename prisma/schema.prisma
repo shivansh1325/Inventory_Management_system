@@ -1,21 +1,21 @@
-// Assembly Line Inventory Manager — Prisma schema
+// Assembly Line Inventory Manager — Prisma schema (PostgreSQL)
 //
 // QUANTITY STORAGE NOTE (important):
-// SQLite's Prisma connector does not support the Decimal type. To keep all
-// quantity/cost math EXACT (no floating-point drift), every quantity and cost
-// field is stored as an INTEGER in "milli-units" (value x 1000, 3 decimal
-// places of precision). All arithmetic happens on integers in src/lib/qty.ts.
+// To keep all quantity/cost math EXACT (no floating-point drift), every
+// quantity and cost field is stored as an INTEGER in "milli-units"
+// (value x 1000, 3 decimal places of precision). All arithmetic happens on
+// integers in src/lib/qty.ts.
 //   stored 2500  == 2.5 (e.g. 2.5 m of wire)
 //   stored 8000  == 8   (e.g. 8 pcs)
-// When switching to PostgreSQL, these fields can be migrated to native
-// Decimal columns and qty.ts swapped for Prisma.Decimal.
+// These columns could be migrated to native Decimal later; the integer
+// scheme is kept for exactness and portability.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

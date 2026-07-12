@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
+    "render-build": "prisma migrate deploy && tsx scripts/bootstrap.ts && next build",
     "test:logic": "tsx scripts/logic-test.ts",
     "test:rbac": "tsx scripts/rbac-test.ts",
     "test:flows": "tsx scripts/flow-test.ts",
