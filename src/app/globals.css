@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Design tokens (light) ---- */
+:root {
+  color-scheme: light;
+  --app-bg: 241 245 249;
+  --surface: 255 255 255;
+  --primary-soft: 238 242 255;
+  --chart-tick: 100 116 139;
+  --chart-grid: 226 232 240;
+  /* categorical series (validated for CVD + contrast on light surface) */
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #059669;
+  --chart-4: #B45309;
+
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+}
+
+/* ---- Dark theme: same tokens, remapped. text-slate-900 stays "strong ink",
+   bg-slate-50 stays "subtle tint", automatically. ---- */
+.dark {
+  color-scheme: dark;
+  --app-bg: 7 11 22;
+  --surface: 15 23 42;
+  --primary-soft: 36 34 84;
+  --chart-tick: 148 163 184;
+  --chart-grid: 51 65 85;
+  /* categorical series (validated for CVD + contrast on dark surface) */
+  --chart-1: #6366F1;
+  --chart-2: #0284C7;
+  --chart-3: #059669;
+  --chart-4: #D97706;
+
+  --slate-50: 26 35 56;
+  --slate-100: 30 41 63;
+  --slate-200: 51 65 85;
+  --slate-300: 71 85 105;
+  --slate-400: 116 130 153;
+  --slate-500: 148 163 184;
+  --slate-600: 170 182 200;
+  --slate-700: 203 213 225;
+  --slate-800: 226 232 240;
+  --slate-900: 241 245 249;
+}
+
+body {
+  @apply bg-app font-sans text-slate-900 antialiased;
+}
+
+/* Print: production slip pages define .print-slip */
+@media print {
+  body { background: white !important; }
+  .no-print { display: none !important; }
+  .print-slip { box-shadow: none !important; border: none !important; }
+}

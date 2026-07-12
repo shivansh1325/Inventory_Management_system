@@ -1,0 +1,258 @@
+// Assembly Line Inventory Manager — Prisma schema
+//
+// QUANTITY STORAGE NOTE (important):
+// SQLite's Prisma connector does not support the Decimal type. To keep all
+// quantity/cost math EXACT (no floating-point drift), every quantity and cost
+// field is stored as an INTEGER in "milli-units" (value x 1000, 3 decimal
+// places of precision). All arithmetic happens on integers in src/lib/qty.ts.
+//   stored 2500  == 2.5 (e.g. 2.5 m of wire)
+//   stored 8000  == 8   (e.g. 8 pcs)
+// When switching to PostgreSQL, these fields can be migrated to native
+// Decimal columns and qty.ts swapped for Prisma.Decimal.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Component {
+  id        String   @id @default(cuid())
+  sku       String   @unique
+  name      String
+  unit      String // pcs | kg | g | m | cm | L | ml
+  stockQty  Int      @default(0) // milli-units — cached TOTAL across warehouses
+  minLevel  Int      @default(0) // milli-units
+  unitCost  Int? // milli-currency (cost x 1000)
+  location  String?
+  supplier  String?
+  category  String?
+  isActive  Boolean  @default(true) // archive flag — never delete items with history
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bomItems    BomItem[]
+  runLines    ProductionRunLine[]
+  movements   StockMovement[]
+  stockLevels StockLevel[]
+  prLines     PurchaseRequisitionLine[]
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  sku              String   @unique
+  name             String
+  description      String?
+  finishedStockQty Int      @default(0) // milli-units
+  unit             String   @default("pcs")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bomItems  BomItem[]
+  runs      ProductionRun[]
+  movements StockMovement[]
+}
+
+model BomItem {
+  id          String @id @default(cuid())
+  productId   String
+  componentId String
+  qtyPerUnit  Int // milli-units needed to build ONE unit of the product
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  component Component @relation(fields: [componentId], references: [id], onDelete: Restrict)
+
+  @@unique([productId, componentId])
+}
+
+model ProductionRun {
+  id           String    @id @default(cuid())
+  runNo        String    @unique // PR-0001
+  productId    String
+  warehouseId  String? // source warehouse for component consumption
+  qtyToProduce Int // milli-units
+  status       String    @default("DRAFT") // DRAFT | COMPLETED | CANCELLED
+  note         String?
+  producedAt   DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  product   Product             @relation(fields: [productId], references: [id])
+  warehouse Warehouse?          @relation(fields: [warehouseId], references: [id])
+  lines     ProductionRunLine[]
+}
+
+// Snapshot of what a run actually consumed. Editing a BOM later never
+// rewrites history — reversals restore exactly what was taken.
+model ProductionRunLine {
+  id                 String @id @default(cuid())
+  productionRunId    String
+  componentId        String
+  qtyPerUnitSnapshot Int // milli-units per product unit at run time
+  qtyConsumed        Int // milli-units actually deducted
+
+  run       ProductionRun @relation(fields: [productionRunId], references: [id], onDelete: Cascade)
+  component Component     @relation(fields: [componentId], references: [id])
+}
+
+// Immutable ledger. Stock is only ever changed alongside a movement row;
+// stockQty / finishedStockQty are the running result.
+model StockMovement {
+  id          String   @id @default(cuid())
+  componentId String?
+  productId   String?
+  warehouseId String? // which warehouse the change happened in (components)
+  type        String // RECEIPT | ADJUSTMENT | PRODUCTION_CONSUMPTION | PRODUCTION_OUTPUT | RUN_REVERSAL | TRANSFER_OUT | TRANSFER_IN
+  qtyChange   Int // milli-units, negative = consumption
+  balanceAfter Int // milli-units — component/product TOTAL after the change
+  refType     String?
+  refId       String?
+  reason      String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  component Component? @relation(fields: [componentId], references: [id])
+  product   Product?   @relation(fields: [productId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([componentId, createdAt])
+  @@index([productId, createdAt])
+  @@index([type, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------- Phase 2: warehouses, RBAC, purchasing, audit ----------------
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  stockLevels  StockLevel[]
+  movements    StockMovement[]
+  runs         ProductionRun[]
+  requisitions PurchaseRequisition[]
+}
+
+// Per-warehouse stock. Component.stockQty stays the cached total across
+// warehouses; the two are updated in the same transaction, always.
+model StockLevel {
+  id          String @id @default(cuid())
+  componentId String
+  warehouseId String
+  qty         Int    @default(0) // milli-units
+
+  component Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([componentId, warehouseId])
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               String    @default("OPERATOR") // ADMIN | MANAGER | STORE | OPERATOR
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  notifications Notification[]
+}
+
+model Supplier {
+  id           String   @id @default(cuid())
+  name         String
+  contact      String?
+  email        String?
+  phone        String?
+  terms        String?
+  leadTimeDays Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  requisitions PurchaseRequisition[]
+}
+
+model PurchaseRequisition {
+  id              String    @id @default(cuid())
+  prNo            String    @unique // REQ-0001
+  status          String    @default("DRAFT") // DRAFT | PENDING_APPROVAL | APPROVED | REJECTED | ORDERED | RECEIVED | CLOSED
+  warehouseId     String
+  supplierId      String?
+  note            String?
+  raisedById      String?
+  raisedByName    String?
+  decidedById     String?
+  decidedByName   String?
+  decidedAt       DateTime?
+  decisionComment String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  warehouse Warehouse                 @relation(fields: [warehouseId], references: [id])
+  supplier  Supplier?                 @relation(fields: [supplierId], references: [id])
+  lines     PurchaseRequisitionLine[]
+}
+
+model PurchaseRequisitionLine {
+  id            String @id @default(cuid())
+  requisitionId String
+  componentId   String
+  qtyRequested  Int // milli-units
+  qtyReceived   Int    @default(0) // milli-units, supports partial receipts
+  estUnitCost   Int? // milli-currency snapshot at raise time
+
+  requisition PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  component   Component           @relation(fields: [componentId], references: [id])
+}
+
+// Actor stored as plain strings (no FK) so the trail survives anything.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorName  String?
+  action     String // e.g. component.create, stock.adjust, run.blocked, requisition.approve …
+  entityType String?
+  entityId   String?
+  detail     String? // JSON blob: before/after, qtys, comments
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String // LOW_STOCK | RUN_BLOCKED | PR_PENDING | PR_DECIDED | TRANSFER | ADJUSTMENT
+  message   String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AppSetting {
+  id                   String  @id @default("singleton")
+  companyName          String  @default("Assembly Line Inventory")
+  currency             String  @default("₹")
+  managerApprovalLimit Int     @default(100000000) // milli-currency: 100,000.000
+  allowNegativeStock   Boolean @default(false)
+  lowStockAlerts       Boolean @default(true)
+}
