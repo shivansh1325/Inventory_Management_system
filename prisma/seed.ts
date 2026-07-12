@@ -40,7 +40,7 @@ async function main() {
 
   console.log("Settings, warehouses, users…");
   await db.appSetting.create({
-    data: { id: "singleton", companyName: "Assembly Line", currency: "₹", managerApprovalLimit: toMilli("50000") },
+    data: { id: "singleton", companyName: "Powrio", currency: "₹", managerApprovalLimit: toMilli("50000") },
   });
 
   const main = await db.warehouse.create({

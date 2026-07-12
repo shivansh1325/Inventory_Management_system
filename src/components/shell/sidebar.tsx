@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Factory, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navForRole } from "@/components/shell/nav-config";
+import { BRAND } from "@/lib/brand";
 import type { Role } from "@/lib/permissions";
 
-export function AppSidebar({ role, companyName }: { role: Role; companyName: string }) {
+export function AppSidebar({ role }: { role: Role; companyName?: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
@@ -30,13 +31,14 @@ export function AppSidebar({ role, companyName }: { role: Role; companyName: str
       )}
     >
       <div className={cn("flex items-center gap-2.5 py-4", collapsed ? "justify-center px-2" : "px-4")}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
-          <Factory className="h-5 w-5" />
-        </div>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={BRAND.logoUrl} alt={BRAND.company} className="h-full w-full object-contain" />
+        </span>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold leading-tight text-slate-900">{companyName}</div>
-            <div className="text-xs text-slate-500">Inventory Manager</div>
+            <div className="truncate text-sm font-bold leading-tight text-slate-900">{BRAND.company}</div>
+            <div className="text-xs text-slate-500">{BRAND.product}</div>
           </div>
         )}
       </div>

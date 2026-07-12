@@ -1,3 +1,4 @@
+// (shared by production + purchasing services)
 import { Prisma } from "@prisma/client";
 
 /**

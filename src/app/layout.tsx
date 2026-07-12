@@ -4,8 +4,9 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
-  title: "Assembly Line Inventory Manager",
-  description: "Components, BOMs, and production runs with automatic stock deduction",
+  title: "Powrio — Inventory Manager",
+  description:
+    "Powrio inventory management: components, BOMs, and production runs with automatic stock deduction",
 };
 
 // Applies the saved theme before first paint — no flash.

@@ -20,7 +20,12 @@ async function main() {
   await db.appSetting.upsert({
     where: { id: "singleton" },
     update: {},
-    create: { id: "singleton" },
+    create: { id: "singleton", companyName: "Powrio" },
+  });
+  // One-time rebrand: replace the old default name, never a custom one.
+  await db.appSetting.updateMany({
+    where: { id: "singleton", companyName: { in: ["Assembly Line", "Assembly Line Inventory"] } },
+    data: { companyName: "Powrio" },
   });
   console.log("✓ settings singleton present");
 
